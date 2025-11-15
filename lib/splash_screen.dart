@@ -6,10 +6,30 @@ class SplashScreen extends StatefulWidget {
   State<SplashScreen> createState() => _SplashScreenState();
 }
 
-class _SplashScreenState extends State<SplashScreen> {
+class _SplashScreenState extends State<SplashScreen>
+    with SingleTickerProviderStateMixin {
+
+  late AnimationController _controller;
+  late Animation<double> _fadeAnimation;
+
   @override
   void initState() {
     super.initState();
+
+    // Animation Setup
+    _controller = AnimationController(
+      vsync: this,
+      duration: Duration(seconds: 2),
+    );
+
+    _fadeAnimation = CurvedAnimation(
+      parent: _controller,
+      curve: Curves.easeIn,
+    );
+
+    _controller.forward();
+
+    // Auto Navigation
     Future.delayed(Duration(seconds: 3), () {
       Navigator.pushReplacement(
         context,
@@ -19,36 +39,59 @@ class _SplashScreenState extends State<SplashScreen> {
   }
 
   @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.white,
-      body: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
+
+      body: Stack(
         children: [
-          Spacer(),
-
-          /// App Logo
-          Image.asset(
-            'assets/resonate_logo.png',
-            width: 140,
-          ),
-
-          Spacer(),
-
-          Text(
-            "From",
-            style: TextStyle(fontSize: 16, color: Colors.grey),
-          ),
-          Text(
-            "AOSSIE",
-            style: TextStyle(
-              fontSize: 22,
-              fontWeight: FontWeight.bold,
-              color: Colors.green,
+          /// Center Logo
+          Center(
+            child: FadeTransition(
+              opacity: _fadeAnimation,
+              child: Image.asset(
+                'assets/resonate_logo.png',
+                width: 180,
+              ),
             ),
           ),
 
-          SizedBox(height: 40),
+          /// Bottom Text (From AOSSIE)
+          Positioned(
+            bottom: 40,
+            left: 0,
+            right: 0,
+            child: FadeTransition(
+              opacity: _fadeAnimation,
+              child: Column(
+                children: [
+                  Text(
+                    "From",
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: Colors.grey.shade600,
+                    ),
+                  ),
+                  SizedBox(height: 4),
+                  Text(
+                    "AOSSIE",
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                      letterSpacing: 1.5,
+                      color: Colors.green,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
         ],
       ),
     );
