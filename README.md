@@ -1,16 +1,30 @@
-# resonate
+# Resonate App Demo
 
-A new Flutter project.
+Demo mobile/web application built with Flutter.
 
-## Getting Started
+## 📌 Overview
+Resonate is a demo project showcasing the design, structure, and implementation of a Flutter-based application.  
+It supports mobile platforms (iOS & Android) and web/desktop targets via Flutter.
 
-This project is a starting point for a Flutter application.
+## 🎯 Features
+- Cross-platform: Mobile (iOS/Android), Web, and Desktop  
+- Built using Flutter & Dart  
+- Responsive and clean UI  
+- Supports asset management  
+- Platform-specific setup included  
+- Easy to extend for real-time application needs  
 
-A few resources to get you started if this is your first Flutter project:
 
-- [Lab: Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
-- [Cookbook: Useful Flutter samples](https://docs.flutter.dev/cookbook)
+## 🛠️ Getting Started
 
-For help getting started with Flutter development, view the
-[online documentation](https://docs.flutter.dev/), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
+### Prerequisites
+- Flutter SDK (latest recommended)
+- Dart SDK
+- IDE: VS Code / Android Studio
+- Xcode (for iOS builds)
+
+### Installation
+```bash
+git clone https://github.com/Manojarya0207/Resonate-App-Demo.git
+cd Resonate-App-Demo
+flutter pub get
