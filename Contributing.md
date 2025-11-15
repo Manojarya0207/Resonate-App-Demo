@@ -41,16 +41,3 @@ To maintain consistency throughout the project's codebase, please adhere to the 
 -   Add comments when necessary to explain complex logic or intent.
 -   Ensure code is properly formatted by using `dartfmt`.
 
-### Commit Structure
-
-Make sure to use conventional commit structure as follows:
-
-```
-<type>: <short summary>
-  │               │
-  │               └─⫸ Summary. Not capitalized. No period at the end.
-  │
-  └─⫸ Commit Type: docs|feat|fix|perf|refactor|test
-```
-
-Know more about Conventional Commits [here](https://www.conventionalcommits.org/en/v1.0.0/).
