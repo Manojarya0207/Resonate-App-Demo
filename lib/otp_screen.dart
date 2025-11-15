@@ -11,7 +11,12 @@ class OTPScreen extends StatefulWidget {
 }
 
 class _OTPScreenState extends State<OTPScreen> {
-  TextEditingController otpController = TextEditingController();
+  List<TextEditingController> otpControllers =
+      List.generate(4, (index) => TextEditingController());
+
+  List<FocusNode> focusNodes =
+      List.generate(4, (index) => FocusNode());
+
   final String dummyOtp = "1234";
 
   int secondsRemaining = 60;
@@ -30,14 +35,14 @@ class _OTPScreenState extends State<OTPScreen> {
       enableResend = false;
     });
 
-    timer?.cancel(); // Cancel previous timer
+    timer?.cancel();
 
-    timer = Timer.periodic(Duration(seconds: 1), (Timer t) {
+    timer = Timer.periodic(Duration(seconds: 1), (Timer timer) {
       if (secondsRemaining > 0) {
         setState(() => secondsRemaining--);
       } else {
         setState(() => enableResend = true);
-        timer?.cancel();
+        timer.cancel();
       }
     });
   }
@@ -45,7 +50,54 @@ class _OTPScreenState extends State<OTPScreen> {
   @override
   void dispose() {
     timer?.cancel();
+    for (var c in otpControllers) {
+      c.dispose();
+    }
     super.dispose();
+  }
+
+  // Combine 4 box values
+  String getOtp() {
+    return otpControllers.map((e) => e.text).join();
+  }
+
+  Widget otpBox(int index) {
+    return Container(
+      width: 60,
+      height: 60,
+      padding: EdgeInsets.all(0),
+      decoration: BoxDecoration(
+        border: Border.all(color: Colors.teal, width: 1.5),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: TextField(
+        controller: otpControllers[index],
+        focusNode: focusNodes[index],
+        keyboardType: TextInputType.number,
+        textAlign: TextAlign.center,
+        style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
+        maxLength: 1,
+        decoration: InputDecoration(
+          counterText: "",
+          border: InputBorder.none,
+        ),
+
+        // Auto move to next field
+        onChanged: (value) {
+          if (value.isNotEmpty && index < 3) {
+            FocusScope.of(context).requestFocus(focusNodes[index + 1]);
+          }
+
+          // If last box filled, close keyboard
+          if (index == 3 && value.isNotEmpty) {
+            FocusScope.of(context).unfocus();
+          }
+        },
+
+        // Handle backspace
+        onSubmitted: (_) {},
+      ),
+    );
   }
 
   @override
@@ -71,53 +123,44 @@ class _OTPScreenState extends State<OTPScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            SizedBox(height: 15),
+            SizedBox(height: 10),
 
             Text(
               "Enter the OTP sent to",
               style: TextStyle(fontSize: 16, color: Colors.grey[700]),
             ),
+
             SizedBox(height: 5),
 
             Text(
               "+91 ${widget.phone}",
               style: TextStyle(
                 fontSize: 20,
-                color: Colors.black87,
                 fontWeight: FontWeight.bold,
               ),
             ),
 
             SizedBox(height: 35),
 
-            // OTP Text Field Box
-            Container(
-              padding: EdgeInsets.symmetric(horizontal: 15, vertical: 5),
-              decoration: BoxDecoration(
-                border: Border.all(color: Colors.teal, width: 1.3),
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: TextField(
-                controller: otpController,
-                keyboardType: TextInputType.number,
-                maxLength: 4,
-                style: TextStyle(fontSize: 22, letterSpacing: 10),
-                decoration: InputDecoration(
-                  counterText: "",
-                  border: InputBorder.none,
-                  hintText: "• • • •",
-                ),
-              ),
+            // OTP BOXES
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+              children: [
+                otpBox(0),
+                otpBox(1),
+                otpBox(2),
+                otpBox(3),
+              ],
             ),
 
-            SizedBox(height: 25),
+            SizedBox(height: 30),
 
             Center(
               child: Text(
                 enableResend
                     ? "Didn't receive OTP?"
                     : "Waiting for OTP...",
-                style: TextStyle(color: Colors.grey[700], fontSize: 15),
+                style: TextStyle(color: Colors.grey[600]),
               ),
             ),
 
@@ -128,6 +171,9 @@ class _OTPScreenState extends State<OTPScreen> {
               child: TextButton(
                 onPressed: enableResend
                     ? () {
+                        for (var controller in otpControllers) {
+                          controller.clear();
+                        }
                         startTimer();
                         ScaffoldMessenger.of(context).showSnackBar(
                           SnackBar(content: Text("New OTP sent!")),
@@ -159,9 +205,10 @@ class _OTPScreenState extends State<OTPScreen> {
                     borderRadius: BorderRadius.circular(10),
                   ),
                 ),
-
                 onPressed: () {
-                  if (otpController.text == dummyOtp) {
+                  String otp = getOtp();
+
+                  if (otp == dummyOtp) {
                     Navigator.pushReplacement(
                       context,
                       MaterialPageRoute(builder: (_) => HomeScreen()),
@@ -172,7 +219,6 @@ class _OTPScreenState extends State<OTPScreen> {
                     );
                   }
                 },
-
                 child: Text(
                   "Verify",
                   style: TextStyle(fontSize: 18, color: Colors.white),
