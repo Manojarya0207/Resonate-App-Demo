@@ -1,5 +1,5 @@
-import 'dart:async';
 import 'package:flutter/material.dart';
+import 'dart:async';
 import 'home_screen.dart';
 
 class OTPScreen extends StatefulWidget {
@@ -10,233 +10,268 @@ class OTPScreen extends StatefulWidget {
   State<OTPScreen> createState() => _OTPScreenState();
 }
 
-class _OTPScreenState extends State<OTPScreen> {
-  List<TextEditingController> otpControllers =
-      List.generate(4, (index) => TextEditingController());
-
-  List<FocusNode> focusNodes =
-      List.generate(4, (index) => FocusNode());
-
-  final String dummyOtp = "1234";
-
-  int secondsRemaining = 60;
-  bool enableResend = false;
-  Timer? timer;
+class _OTPScreenState extends State<OTPScreen>
+    with SingleTickerProviderStateMixin {
+  
+  final String correctOtp = "123456";
+  List<TextEditingController> controllers =
+      List.generate(6, (index) => TextEditingController());
 
   bool isLoading = false;
+  bool otpVerified = false;
+  int seconds = 60;
+  Timer? timer;
+
+  late AnimationController successController;
+  late Animation<double> successScale;
 
   @override
   void initState() {
     super.initState();
     startTimer();
+
+    successController = AnimationController(
+      vsync: this,
+      duration: Duration(milliseconds: 700),
+    );
+
+    successScale = CurvedAnimation(
+      parent: successController,
+      curve: Curves.easeOutBack,
+    );
   }
 
+  // ---------------------------------------------------------
+  // TIMER
+  // ---------------------------------------------------------
   void startTimer() {
-    setState(() {
-      secondsRemaining = 60;
-      enableResend = false;
-    });
-
     timer?.cancel();
+    seconds = 60;
 
-    timer = Timer.periodic(Duration(seconds: 1), (timer) {
-      if (secondsRemaining > 0) {
-        setState(() => secondsRemaining--);
+    timer = Timer.periodic(Duration(seconds: 1), (t) {
+      if (seconds == 0) {
+        t.cancel();
       } else {
-        setState(() => enableResend = true);
-        timer.cancel();
+        setState(() => seconds--);
       }
     });
   }
 
-  @override
-  void dispose() {
-    timer?.cancel();
-    for (var c in otpControllers) {
-      c.dispose();
+  // ---------------------------------------------------------
+  // OTP COLLECTOR
+  // ---------------------------------------------------------
+  String getEnteredOtp() {
+    return controllers.map((c) => c.text).join();
+  }
+
+  // ---------------------------------------------------------
+  // OTP VERIFY + WHATSAPP TRANSITION
+  // ---------------------------------------------------------
+  void verifyOtp() async {
+    setState(() => isLoading = true);
+
+    await Future.delayed(Duration(seconds: 1));
+
+    if (getEnteredOtp() == correctOtp) {
+      setState(() {
+        otpVerified = true;
+        isLoading = false;
+      });
+
+      successController.forward();
+
+      await Future.delayed(Duration(milliseconds: 700));
+
+      // WHATSAPP STYLE SLIDE + OPACITY TRANSITION
+      Navigator.pushReplacement(
+        context,
+        PageRouteBuilder(
+          transitionDuration: Duration(milliseconds: 450),
+          pageBuilder: (_, animation, __) {
+            return FadeTransition(
+              opacity: animation,
+              child: SlideTransition(
+                position: Tween<Offset>(
+                  begin: Offset(0.06, 0),
+                  end: Offset.zero,
+                ).animate(CurvedAnimation(
+                    parent: animation, curve: Curves.easeOut)),
+                child: HomeScreen(),
+              ),
+            );
+          },
+        ),
+      );
+    } else {
+      setState(() => isLoading = false);
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text("Incorrect OTP")));
     }
-    super.dispose();
   }
 
-  String getOtp() {
-    return otpControllers.map((e) => e.text).join();
+  // ---------------------------------------------------------
+  // EDIT PHONE NUMBER BOTTOM SHEET
+  // ---------------------------------------------------------
+  void openPhoneEdit() {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.white,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (_) {
+        TextEditingController numberController =
+            TextEditingController(text: widget.phone);
+
+        return Padding(
+          padding: EdgeInsets.all(20),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text("Edit Phone Number",
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+              SizedBox(height: 15),
+              TextField(
+                controller: numberController,
+                keyboardType: TextInputType.phone,
+                decoration: InputDecoration(
+                  border: OutlineInputBorder(),
+                  labelText: "Phone Number",
+                  prefixText: "+91 ",
+                ),
+              ),
+              SizedBox(height: 15),
+              ElevatedButton(
+                onPressed: () {
+                  Navigator.pop(context);
+                  Navigator.pop(context); // Go back to Login screen
+                },
+                child: Text("Update & Go Back"),
+              )
+            ],
+          ),
+        );
+      },
+    );
   }
 
-  Widget otpBox(int index) {
+  // ---------------------------------------------------------
+  // OTP INPUT BOX BUILDER
+  // ---------------------------------------------------------
+  Widget buildOtpBox(int index) {
     return Container(
-      width: 60,
+      width: 48,
       height: 60,
       decoration: BoxDecoration(
-        border: Border.all(color: Colors.teal, width: 1.5),
-        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.teal, width: 1.7),
+        borderRadius: BorderRadius.circular(10),
       ),
       child: TextField(
-        controller: otpControllers[index],
-        focusNode: focusNodes[index],
+        controller: controllers[index],
         keyboardType: TextInputType.number,
         textAlign: TextAlign.center,
-        style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
         maxLength: 1,
-        decoration: InputDecoration(
-          counterText: "",
-          border: InputBorder.none,
-        ),
-        onChanged: (value) {
-          if (value.isNotEmpty && index < 3) {
-            FocusScope.of(context).requestFocus(focusNodes[index + 1]);
-          }
-          if (index == 3 && value.isNotEmpty) {
-            FocusScope.of(context).unfocus();
+        onChanged: (v) {
+          if (v.isNotEmpty && index < 5) {
+            FocusScope.of(context).nextFocus();
+          } else if (v.isEmpty && index > 0) {
+            FocusScope.of(context).previousFocus();
           }
         },
+        decoration: InputDecoration(counterText: "", border: InputBorder.none),
+        style: TextStyle(fontSize: 22),
       ),
     );
   }
 
+  // ---------------------------------------------------------
+  // DISPOSE
+  // ---------------------------------------------------------
+  @override
+  void dispose() {
+    timer?.cancel();
+    successController.dispose();
+    super.dispose();
+  }
+
+  // ---------------------------------------------------------
+  // UI
+  // ---------------------------------------------------------
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.white,
-
       appBar: AppBar(
-        backgroundColor: Colors.white,
-        elevation: 0,
-        centerTitle: true,
-        title: Text(
-          "Verify OTP",
-          style: TextStyle(
-            color: Colors.teal,
-            fontWeight: FontWeight.bold,
-          ),
-        ),
+        title: Text("Verify OTP"),
+        leading: BackButton(),
       ),
-
       body: Padding(
-        padding: EdgeInsets.all(25),
+        padding: EdgeInsets.all(22),
         child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+          crossAxisAlignment: CrossAxisAlignment.center,
           children: [
-            SizedBox(height: 10),
+            Text("OTP sent to +91 ${widget.phone}",
+                style: TextStyle(fontSize: 16)),
 
-            Text(
-              "Enter the OTP sent to",
-              style: TextStyle(fontSize: 16, color: Colors.grey[700]),
+            TextButton(
+              onPressed: openPhoneEdit,
+              child: Text("Edit Number", style: TextStyle(color: Colors.blue)),
             ),
 
-            SizedBox(height: 5),
-
-            Text(
-              "+91 ${widget.phone}",
-              style: TextStyle(
-                fontSize: 20,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-
-            SizedBox(height: 35),
+            SizedBox(height: 25),
 
             // OTP BOXES
             Row(
-              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-              children: [
-                otpBox(0),
-                otpBox(1),
-                otpBox(2),
-                otpBox(3),
-              ],
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: List.generate(6, (index) => buildOtpBox(index)),
             ),
 
-            SizedBox(height: 30),
+            SizedBox(height: 25),
 
-            Center(
-              child: Text(
-                enableResend ? "Didn't receive OTP?" : "Waiting for OTP...",
-                style: TextStyle(color: Colors.grey[600]),
-              ),
-            ),
-
-            SizedBox(height: 10),
-
-            // RESEND OTP BUTTON
-            Center(
-              child: TextButton(
-                onPressed: enableResend
-                    ? () {
-                        for (var controller in otpControllers) {
-                          controller.clear();
-                        }
-                        startTimer();
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(content: Text("New OTP sent!")),
-                        );
-                      }
-                    : null,
-                child: Text(
-                  enableResend
-                      ? "Resend OTP"
-                      : "Resend in 00:${secondsRemaining.toString().padLeft(2, '0')}",
-                  style: TextStyle(
-                    color: enableResend ? Colors.teal : Colors.grey,
-                    fontSize: 17,
-                    fontWeight: FontWeight.bold,
+            // TIMER
+            seconds > 0
+                ? Text(
+                    "Resend OTP in 00:${seconds.toString().padLeft(2, '0')}",
+                    style: TextStyle(fontSize: 14),
+                  )
+                : TextButton(
+                    onPressed: () {
+                      controllers.forEach((c) => c.clear());
+                      startTimer();
+                    },
+                    child: Text("Resend OTP",
+                        style: TextStyle(color: Colors.blue)),
                   ),
-                ),
-              ),
-            ),
 
             SizedBox(height: 40),
 
+            // ✔ SUCCESS TICK
+            otpVerified
+                ? ScaleTransition(
+                    scale: successScale,
+                    child: Icon(Icons.check_circle,
+                        size: 80, color: Colors.green),
+                  )
+                : SizedBox(),
+
+            SizedBox(height: 20),
+
             // VERIFY BUTTON WITH LOADING
-            Center(
-              child: ElevatedButton(
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.teal,
-                  padding:
-                      EdgeInsets.symmetric(horizontal: 80, vertical: 14),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                ),
-                onPressed: isLoading
-                    ? null
-                    : () async {
-                        setState(() => isLoading = true);
-
-                        await Future.delayed(Duration(seconds: 2));
-
-                        String otp = getOtp();
-                        setState(() => isLoading = false);
-
-                        if (otp == dummyOtp) {
-                          Navigator.pushReplacement(
-                            context,
-                            MaterialPageRoute(
-                                builder: (_) => HomeScreen()),
-                          );
-                        } else {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(content: Text("Incorrect OTP")),
-                          );
-                        }
-                      },
-                child: isLoading
-                    ? SizedBox(
-                        height: 22,
-                        width: 22,
-                        child: CircularProgressIndicator(
-                          strokeWidth: 2.4,
-                          color: Colors.white,
-                        ),
-                      )
-                    : Text(
-                        "Verify",
-                        style: TextStyle(
-                          fontSize: 18,
-                          color: Colors.white,
-                        ),
-                      ),
+            ElevatedButton(
+              onPressed: isLoading ? null : verifyOtp,
+              style: ElevatedButton.styleFrom(
+                minimumSize: Size(double.infinity, 50),
               ),
-            ),
+              child: isLoading
+                  ? SizedBox(
+                      height: 25,
+                      width: 25,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2.5,
+                        color: Colors.white,
+                      ),
+                    )
+                  : Text("Verify OTP", style: TextStyle(fontSize: 18)),
+            )
           ],
         ),
       ),

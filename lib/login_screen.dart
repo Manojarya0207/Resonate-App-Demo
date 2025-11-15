@@ -8,6 +8,29 @@ class LoginScreen extends StatefulWidget {
 
 class _LoginScreenState extends State<LoginScreen> {
   TextEditingController phoneController = TextEditingController();
+  bool isLoading = false;
+
+  void goToOTP() async {
+    if (phoneController.text.length < 10) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("Enter valid number")),
+      );
+      return;
+    }
+
+    setState(() => isLoading = true);
+
+    await Future.delayed(Duration(seconds: 1)); // simulate loading
+
+    setState(() => isLoading = false);
+
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => OTPScreen(phone: phoneController.text),
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -35,7 +58,7 @@ class _LoginScreenState extends State<LoginScreen> {
             SizedBox(height: 20),
 
             Text(
-              "WhatsApp will need to verify your phone number.",
+              "Resonate will need to verify your phone number.",
               style: TextStyle(fontSize: 16, color: Colors.grey[700]),
             ),
 
@@ -75,31 +98,25 @@ class _LoginScreenState extends State<LoginScreen> {
               child: ElevatedButton(
                 style: ElevatedButton.styleFrom(
                   backgroundColor: Colors.teal,
-                  padding:
-                      EdgeInsets.symmetric(horizontal: 80, vertical: 14),
+                  padding: EdgeInsets.symmetric(horizontal: 80, vertical: 14),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(10),
                   ),
                 ),
-                onPressed: () {
-                  if (phoneController.text.length < 10) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(content: Text("Enter valid number")),
-                    );
-                    return;
-                  }
-
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (_) => OTPScreen(phone: phoneController.text),
-                    ),
-                  );
-                },
-                child: Text(
-                  "Next",
-                  style: TextStyle(fontSize: 18, color: Colors.white),
-                ),
+                onPressed: isLoading ? null : goToOTP,
+                child: isLoading
+                    ? SizedBox(
+                        height: 26,
+                        width: 26,
+                        child: CircularProgressIndicator(
+                          color: Colors.white,
+                          strokeWidth: 2.5,
+                        ),
+                      )
+                    : Text(
+                        "Next",
+                        style: TextStyle(fontSize: 18, color: Colors.white),
+                      ),
               ),
             ),
 
