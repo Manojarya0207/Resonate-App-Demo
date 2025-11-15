@@ -23,6 +23,8 @@ class _OTPScreenState extends State<OTPScreen> {
   bool enableResend = false;
   Timer? timer;
 
+  bool isLoading = false;
+
   @override
   void initState() {
     super.initState();
@@ -37,7 +39,7 @@ class _OTPScreenState extends State<OTPScreen> {
 
     timer?.cancel();
 
-    timer = Timer.periodic(Duration(seconds: 1), (Timer timer) {
+    timer = Timer.periodic(Duration(seconds: 1), (timer) {
       if (secondsRemaining > 0) {
         setState(() => secondsRemaining--);
       } else {
@@ -56,7 +58,6 @@ class _OTPScreenState extends State<OTPScreen> {
     super.dispose();
   }
 
-  // Combine 4 box values
   String getOtp() {
     return otpControllers.map((e) => e.text).join();
   }
@@ -65,7 +66,6 @@ class _OTPScreenState extends State<OTPScreen> {
     return Container(
       width: 60,
       height: 60,
-      padding: EdgeInsets.all(0),
       decoration: BoxDecoration(
         border: Border.all(color: Colors.teal, width: 1.5),
         borderRadius: BorderRadius.circular(12),
@@ -81,21 +81,14 @@ class _OTPScreenState extends State<OTPScreen> {
           counterText: "",
           border: InputBorder.none,
         ),
-
-        // Auto move to next field
         onChanged: (value) {
           if (value.isNotEmpty && index < 3) {
             FocusScope.of(context).requestFocus(focusNodes[index + 1]);
           }
-
-          // If last box filled, close keyboard
           if (index == 3 && value.isNotEmpty) {
             FocusScope.of(context).unfocus();
           }
         },
-
-        // Handle backspace
-        onSubmitted: (_) {},
       ),
     );
   }
@@ -157,9 +150,7 @@ class _OTPScreenState extends State<OTPScreen> {
 
             Center(
               child: Text(
-                enableResend
-                    ? "Didn't receive OTP?"
-                    : "Waiting for OTP...",
+                enableResend ? "Didn't receive OTP?" : "Waiting for OTP...",
                 style: TextStyle(color: Colors.grey[600]),
               ),
             ),
@@ -195,34 +186,55 @@ class _OTPScreenState extends State<OTPScreen> {
 
             SizedBox(height: 40),
 
-            // VERIFY BUTTON
+            // VERIFY BUTTON WITH LOADING
             Center(
               child: ElevatedButton(
                 style: ElevatedButton.styleFrom(
                   backgroundColor: Colors.teal,
-                  padding: EdgeInsets.symmetric(horizontal: 80, vertical: 14),
+                  padding:
+                      EdgeInsets.symmetric(horizontal: 80, vertical: 14),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(10),
                   ),
                 ),
-                onPressed: () {
-                  String otp = getOtp();
+                onPressed: isLoading
+                    ? null
+                    : () async {
+                        setState(() => isLoading = true);
 
-                  if (otp == dummyOtp) {
-                    Navigator.pushReplacement(
-                      context,
-                      MaterialPageRoute(builder: (_) => HomeScreen()),
-                    );
-                  } else {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(content: Text("Incorrect OTP")),
-                    );
-                  }
-                },
-                child: Text(
-                  "Verify",
-                  style: TextStyle(fontSize: 18, color: Colors.white),
-                ),
+                        await Future.delayed(Duration(seconds: 2));
+
+                        String otp = getOtp();
+                        setState(() => isLoading = false);
+
+                        if (otp == dummyOtp) {
+                          Navigator.pushReplacement(
+                            context,
+                            MaterialPageRoute(
+                                builder: (_) => HomeScreen()),
+                          );
+                        } else {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(content: Text("Incorrect OTP")),
+                          );
+                        }
+                      },
+                child: isLoading
+                    ? SizedBox(
+                        height: 22,
+                        width: 22,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2.4,
+                          color: Colors.white,
+                        ),
+                      )
+                    : Text(
+                        "Verify",
+                        style: TextStyle(
+                          fontSize: 18,
+                          color: Colors.white,
+                        ),
+                      ),
               ),
             ),
           ],
