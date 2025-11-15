@@ -29,7 +29,7 @@ class _SplashScreenState extends State<SplashScreen> {
 
           /// App Logo
           Image.asset(
-            'assets/logo.png',
+            'assets/resonate_logo.png',
             width: 140,
           ),
 
