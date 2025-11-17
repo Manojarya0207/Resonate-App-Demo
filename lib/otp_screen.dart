@@ -14,6 +14,7 @@ class _OTPScreenState extends State<OTPScreen>
     with TickerProviderStateMixin {
   
   final String correctOtp = "123456";
+
   List<TextEditingController> controllers =
       List.generate(6, (index) => TextEditingController());
 
@@ -34,6 +35,7 @@ class _OTPScreenState extends State<OTPScreen>
     super.initState();
     startTimer();
 
+    /// Success animation
     successController = AnimationController(
       vsync: this,
       duration: Duration(milliseconds: 700),
@@ -44,15 +46,15 @@ class _OTPScreenState extends State<OTPScreen>
       curve: Curves.easeOutBack,
     );
 
+    /// Shake animation
     shakeController = AnimationController(
       vsync: this,
       duration: Duration(milliseconds: 400),
     );
 
-    shakeAnimation =
-        Tween<double>(begin: 0, end: 12)
-            .chain(CurveTween(curve: Curves.elasticIn))
-            .animate(shakeController);
+    shakeAnimation = Tween<double>(begin: 0, end: 12)
+        .chain(CurveTween(curve: Curves.elasticIn))
+        .animate(shakeController);
   }
 
   void startTimer() {
@@ -63,7 +65,9 @@ class _OTPScreenState extends State<OTPScreen>
       if (seconds == 0) {
         t.cancel();
       } else {
-        setState(() => seconds--);
+        if (mounted) {
+          setState(() => seconds--);
+        }
       }
     });
   }
@@ -86,6 +90,8 @@ class _OTPScreenState extends State<OTPScreen>
       successController.forward();
 
       await Future.delayed(Duration(milliseconds: 700));
+
+      if (!mounted) return;
 
       Navigator.pushReplacement(
         context,
@@ -158,7 +164,8 @@ class _OTPScreenState extends State<OTPScreen>
               FocusScope.of(context).previousFocus();
             }
           },
-          decoration: InputDecoration(counterText: "", border: InputBorder.none),
+          decoration:
+              InputDecoration(counterText: "", border: InputBorder.none),
           style: TextStyle(fontSize: 22),
         ),
       ),
@@ -170,6 +177,7 @@ class _OTPScreenState extends State<OTPScreen>
     timer?.cancel();
     successController.dispose();
     shakeController.dispose();
+    controllers.forEach((c) => c.dispose());
     super.dispose();
   }
 
@@ -185,8 +193,10 @@ class _OTPScreenState extends State<OTPScreen>
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.center,
           children: [
-            Text("OTP sent to +91 ${widget.phone}",
-                style: TextStyle(fontSize: 16)),
+            Text(
+              "OTP sent to +91 ${widget.phone}",
+              style: TextStyle(fontSize: 16),
+            ),
 
             SizedBox(height: 25),
 
