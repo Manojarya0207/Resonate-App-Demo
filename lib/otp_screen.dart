@@ -11,7 +11,7 @@ class OTPScreen extends StatefulWidget {
 }
 
 class _OTPScreenState extends State<OTPScreen>
-    with SingleTickerProviderStateMixin {
+    with TickerProviderStateMixin {
   
   final String correctOtp = "123456";
   List<TextEditingController> controllers =
@@ -24,6 +24,10 @@ class _OTPScreenState extends State<OTPScreen>
 
   late AnimationController successController;
   late Animation<double> successScale;
+
+  bool wrongOtp = false;
+  late AnimationController shakeController;
+  late Animation<double> shakeAnimation;
 
   @override
   void initState() {
@@ -39,11 +43,18 @@ class _OTPScreenState extends State<OTPScreen>
       parent: successController,
       curve: Curves.easeOutBack,
     );
+
+    shakeController = AnimationController(
+      vsync: this,
+      duration: Duration(milliseconds: 400),
+    );
+
+    shakeAnimation =
+        Tween<double>(begin: 0, end: 12)
+            .chain(CurveTween(curve: Curves.elasticIn))
+            .animate(shakeController);
   }
 
-  // ---------------------------------------------------------
-  // TIMER
-  // ---------------------------------------------------------
   void startTimer() {
     timer?.cancel();
     seconds = 60;
@@ -57,16 +68,10 @@ class _OTPScreenState extends State<OTPScreen>
     });
   }
 
-  // ---------------------------------------------------------
-  // OTP COLLECTOR
-  // ---------------------------------------------------------
   String getEnteredOtp() {
     return controllers.map((c) => c.text).join();
   }
 
-  // ---------------------------------------------------------
-  // OTP VERIFY + WHATSAPP TRANSITION
-  // ---------------------------------------------------------
   void verifyOtp() async {
     setState(() => isLoading = true);
 
@@ -82,7 +87,6 @@ class _OTPScreenState extends State<OTPScreen>
 
       await Future.delayed(Duration(milliseconds: 700));
 
-      // WHATSAPP STYLE SLIDE + OPACITY TRANSITION
       Navigator.pushReplacement(
         context,
         PageRouteBuilder(
@@ -103,100 +107,72 @@ class _OTPScreenState extends State<OTPScreen>
         ),
       );
     } else {
-      setState(() => isLoading = false);
+      wrongOtp = true;
+      isLoading = false;
+
+      shakeController.forward(from: 0);
+
+      controllers.forEach((c) => c.clear());
+
+      Future.delayed(Duration(seconds: 1), () {
+        if (mounted) setState(() => wrongOtp = false);
+      });
+
+      setState(() {});
       ScaffoldMessenger.of(context)
           .showSnackBar(SnackBar(content: Text("Incorrect OTP")));
     }
   }
 
-  // ---------------------------------------------------------
-  // EDIT PHONE NUMBER BOTTOM SHEET
-  // ---------------------------------------------------------
-  void openPhoneEdit() {
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: Colors.white,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      builder: (_) {
-        TextEditingController numberController =
-            TextEditingController(text: widget.phone);
-
-        return Padding(
-          padding: EdgeInsets.all(20),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text("Edit Phone Number",
-                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-              SizedBox(height: 15),
-              TextField(
-                controller: numberController,
-                keyboardType: TextInputType.phone,
-                decoration: InputDecoration(
-                  border: OutlineInputBorder(),
-                  labelText: "Phone Number",
-                  prefixText: "+91 ",
-                ),
-              ),
-              SizedBox(height: 15),
-              ElevatedButton(
-                onPressed: () {
-                  Navigator.pop(context);
-                  Navigator.pop(context); // Go back to Login screen
-                },
-                child: Text("Update & Go Back"),
-              )
-            ],
+  Widget buildOtpBox(int index) {
+    return AnimatedBuilder(
+      animation: shakeController,
+      builder: (context, child) {
+        return Transform.translate(
+          offset: Offset(
+            wrongOtp ? shakeAnimation.value : 0,
+            0,
           ),
+          child: child,
         );
       },
-    );
-  }
-
-  // ---------------------------------------------------------
-  // OTP INPUT BOX BUILDER
-  // ---------------------------------------------------------
-  Widget buildOtpBox(int index) {
-    return Container(
-      width: 48,
-      height: 60,
-      decoration: BoxDecoration(
-        border: Border.all(color: Colors.teal, width: 1.7),
-        borderRadius: BorderRadius.circular(10),
-      ),
-      child: TextField(
-        controller: controllers[index],
-        keyboardType: TextInputType.number,
-        textAlign: TextAlign.center,
-        maxLength: 1,
-        onChanged: (v) {
-          if (v.isNotEmpty && index < 5) {
-            FocusScope.of(context).nextFocus();
-          } else if (v.isEmpty && index > 0) {
-            FocusScope.of(context).previousFocus();
-          }
-        },
-        decoration: InputDecoration(counterText: "", border: InputBorder.none),
-        style: TextStyle(fontSize: 22),
+      child: Container(
+        width: 48,
+        height: 60,
+        decoration: BoxDecoration(
+          border: Border.all(
+            color: wrongOtp ? Colors.red : Colors.teal,
+            width: 2,
+          ),
+          borderRadius: BorderRadius.circular(10),
+        ),
+        child: TextField(
+          controller: controllers[index],
+          keyboardType: TextInputType.number,
+          textAlign: TextAlign.center,
+          maxLength: 1,
+          onChanged: (v) {
+            if (v.isNotEmpty && index < 5) {
+              FocusScope.of(context).nextFocus();
+            } else if (v.isEmpty && index > 0) {
+              FocusScope.of(context).previousFocus();
+            }
+          },
+          decoration: InputDecoration(counterText: "", border: InputBorder.none),
+          style: TextStyle(fontSize: 22),
+        ),
       ),
     );
   }
 
-  // ---------------------------------------------------------
-  // DISPOSE
-  // ---------------------------------------------------------
   @override
   void dispose() {
     timer?.cancel();
     successController.dispose();
+    shakeController.dispose();
     super.dispose();
   }
 
-  // ---------------------------------------------------------
-  // UI
-  // ---------------------------------------------------------
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -212,22 +188,27 @@ class _OTPScreenState extends State<OTPScreen>
             Text("OTP sent to +91 ${widget.phone}",
                 style: TextStyle(fontSize: 16)),
 
-            TextButton(
-              onPressed: openPhoneEdit,
-              child: Text("Edit Number", style: TextStyle(color: Colors.blue)),
+            SizedBox(height: 25),
+
+            AnimatedBuilder(
+              animation: shakeController,
+              builder: (context, child) {
+                return Transform.translate(
+                  offset: Offset(
+                    wrongOtp ? shakeAnimation.value : 0,
+                    0,
+                  ),
+                  child: child,
+                );
+              },
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: List.generate(6, (index) => buildOtpBox(index)),
+              ),
             ),
 
             SizedBox(height: 25),
 
-            // OTP BOXES
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: List.generate(6, (index) => buildOtpBox(index)),
-            ),
-
-            SizedBox(height: 25),
-
-            // TIMER
             seconds > 0
                 ? Text(
                     "Resend OTP in 00:${seconds.toString().padLeft(2, '0')}",
@@ -238,13 +219,11 @@ class _OTPScreenState extends State<OTPScreen>
                       controllers.forEach((c) => c.clear());
                       startTimer();
                     },
-                    child: Text("Resend OTP",
-                        style: TextStyle(color: Colors.blue)),
+                    child: Text("Resend OTP"),
                   ),
 
             SizedBox(height: 40),
 
-            // ✔ SUCCESS TICK
             otpVerified
                 ? ScaleTransition(
                     scale: successScale,
@@ -255,7 +234,6 @@ class _OTPScreenState extends State<OTPScreen>
 
             SizedBox(height: 20),
 
-            // VERIFY BUTTON WITH LOADING
             ElevatedButton(
               onPressed: isLoading ? null : verifyOtp,
               style: ElevatedButton.styleFrom(
